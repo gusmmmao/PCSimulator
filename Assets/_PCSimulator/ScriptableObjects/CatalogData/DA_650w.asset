@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a436ad9d31df494b8526e0e863ae028, type: 3}
+  m_Name: DA_650w
+  m_EditorClassIdentifier: Assembly-CSharp::PCSimulator.Data.ComponentDataSO
+  componentId: 650w
+  displayName: PSU_650W
+  componentType: 6
+  description: 
+  socketType: 0
+  requiredSlotType: 9
+  dimensions: {x: 1, y: 1, z: 1}
+  prefab: {fileID: 0}
+  icon: {fileID: 0}
