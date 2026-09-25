@@ -5,6 +5,7 @@ namespace PCSimulator.Assembly
 {
     /// <summary>
     /// Componente que define um Slot de encaixe físico no simulador (ex: Soquete CPU, Slot RAM 1, PCIe x16, Slot M.2, etc.).
+    /// Gerencia a atração física, escala correta de encaixe e feedback visual (Highlights de encaixe).
     /// </summary>
     public class AssemblySlot : MonoBehaviour
     {
@@ -17,8 +18,11 @@ namespace PCSimulator.Assembly
         [SerializeField] private bool isOccupied;
         [SerializeField] private ComputerComponent installedComponent;
 
-        [Header("Snapping Vector & Tolerance")]
-        [SerializeField] private float snapDistanceThreshold = 0.25f;
+        [Header("Snapping & Tolerância")]
+        [SerializeField] private float snapDistanceThreshold = 0.35f;
+
+        [Header("Feedback Visual 3D")]
+        [SerializeField] private MeshRenderer slotVisualRenderer;
 
         public string SlotId => slotId;
         public ComponentType AllowedType => allowedType;
@@ -26,6 +30,33 @@ namespace PCSimulator.Assembly
         public bool IsOccupied => isOccupied;
         public ComputerComponent InstalledComponent => installedComponent;
         public float SnapDistanceThreshold => snapDistanceThreshold;
+
+        private Material originalSlotMaterial;
+        private static Material highlightCompatibleMaterial;
+
+        private void Awake()
+        {
+            if (slotVisualRenderer == null)
+            {
+                slotVisualRenderer = GetComponentInChildren<MeshRenderer>();
+            }
+
+            if (slotVisualRenderer != null)
+            {
+                originalSlotMaterial = slotVisualRenderer.material;
+            }
+
+            CreateHighlightMaterialsIfNeeded();
+        }
+
+        private static void CreateHighlightMaterialsIfNeeded()
+        {
+            if (highlightCompatibleMaterial == null)
+            {
+                highlightCompatibleMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                highlightCompatibleMaterial.color = new Color(0.1f, 1f, 0.3f, 0.8f); // Verde neon transparente
+            }
+        }
 
         public bool IsComponentCompatible(ComputerComponent component)
         {
@@ -36,6 +67,20 @@ namespace PCSimulator.Assembly
             bool matchesSocket = allowedSocket == SocketType.None || data.RequiredSlotType == allowedSocket || data.SocketType == allowedSocket;
 
             return matchesType && matchesSocket;
+        }
+
+        public void SetHighlight(bool enable)
+        {
+            if (slotVisualRenderer == null) return;
+
+            if (enable && !isOccupied)
+            {
+                slotVisualRenderer.material = highlightCompatibleMaterial;
+            }
+            else if (originalSlotMaterial != null)
+            {
+                slotVisualRenderer.material = originalSlotMaterial;
+            }
         }
 
         public bool TryInstallComponent(ComputerComponent component)
@@ -52,18 +97,19 @@ namespace PCSimulator.Assembly
                 return false;
             }
 
-            // Realiza o snap físico no transform do slot
-            component.transform.SetParent(transform);
-            component.transform.localPosition = Vector3.zero;
-            component.transform.localRotation = Quaternion.identity;
+            // Realiza o encaixe mantendo a escala de mundo (evita achatamento de parentes)
+            component.transform.SetParent(transform, true);
+            component.transform.position = transform.position;
+            component.transform.rotation = transform.rotation;
 
             installedComponent = component;
             isOccupied = true;
 
             component.SetState(InstallationState.Installed);
             component.SetSlot(this);
+            SetHighlight(false);
 
-            Debug.Log($"[AssemblySlot] Componente '{component.ComponentData.DisplayName}' instalado com sucesso no slot '{slotId}'.");
+            Debug.Log($"[AssemblySlot] Componente '{component.ComponentData?.DisplayName ?? component.name}' instalado com sucesso no slot '{slotId}'.");
             return true;
         }
 
@@ -79,14 +125,16 @@ namespace PCSimulator.Assembly
             installedComponent = null;
             isOccupied = false;
 
-            Debug.Log($"[AssemblySlot] Componente '{removed.ComponentData.DisplayName}' removido do slot '{slotId}'.");
+            AssemblySystem.Instance?.NotifyComponentUninstalled(removed, this);
+
+            Debug.Log($"[AssemblySlot] Componente '{removed.ComponentData?.DisplayName ?? removed.name}' removido do slot '{slotId}'.");
             return removed;
         }
 
         private void OnDrawGizmos()
         {
             Gizmos.color = isOccupied ? Color.red : Color.green;
-            Gizmos.DrawWireCube(transform.position, Vector3.one * 0.1f);
+            Gizmos.DrawWireCube(transform.position, Vector3.one * 0.08f);
         }
     }
 }

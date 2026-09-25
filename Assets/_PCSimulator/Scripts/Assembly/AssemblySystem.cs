@@ -75,5 +75,10 @@ namespace PCSimulator.Assembly
 
             return false;
         }
+
+        public void NotifyComponentUninstalled(ComputerComponent component, AssemblySlot slot)
+        {
+            OnComponentUninstalled?.Invoke(component, slot);
+        }
     }
 }

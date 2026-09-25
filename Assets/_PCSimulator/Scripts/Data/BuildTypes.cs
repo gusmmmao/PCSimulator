@@ -35,12 +35,12 @@ namespace PCSimulator.Data
         {
             var list = new List<string>();
             if (!string.IsNullOrEmpty(CpuId)) list.Add(CpuId);
-            if (!string.IsNullOrEmpty(MotherboardId)) list.Add(MotherboardId);
+            // if (!string.IsNullOrEmpty(MotherboardId)) list.Add(MotherboardId); // TODO: Implement Motherboard slot
             if (RamIds != null) list.AddRange(RamIds);
             if (!string.IsNullOrEmpty(GpuId)) list.Add(GpuId);
             if (!string.IsNullOrEmpty(StorageId)) list.Add(StorageId);
             if (!string.IsNullOrEmpty(PsuId)) list.Add(PsuId);
-            if (!string.IsNullOrEmpty(CaseId)) list.Add(CaseId);
+            // if (!string.IsNullOrEmpty(CaseId)) list.Add(CaseId); // TODO: Implement Case slot
             return list;
         }
     }

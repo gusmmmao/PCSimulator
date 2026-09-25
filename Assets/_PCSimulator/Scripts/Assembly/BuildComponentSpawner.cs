@@ -1,86 +1,68 @@
 using System.Collections.Generic;
 using UnityEngine;
 using PCSimulator.Core;
-using PCSimulator.Catalog;
 using PCSimulator.Data;
-using PCSimulator.Networking;
+using PCSimulator.Catalog;
 
 namespace PCSimulator.Assembly
 {
-    /// <summary>
-    /// Componente responsável por escutar o recebimento de uma Build (JSON)
-    /// e instanciar dinamicamente na bancada do simulador os componentes correspondentes.
-    /// </summary>
     public class BuildComponentSpawner : MonoBehaviour
     {
-        public static BuildComponentSpawner Instance { get; private set; }
-
         [Header("Pontos de Spawn na Bancada")]
-        [SerializeField] private Transform workbenchSpawnPoint;
-        [SerializeField] private Vector3 spawnOffsetIncrement = new Vector3(0.35f, 0, 0);
+        [SerializeField] private Vector3 defaultSpawnStart = new Vector3(-0.8f, 0.1f, 0.3f);
+        [SerializeField] private Vector3 spawnOffsetIncrement = new Vector3(0.0f, 0.0f, -0.2f);
 
         [Header("Componentes Gerados na Cena")]
         [SerializeField] private List<ComputerComponent> spawnedComponents = new List<ComputerComponent>();
 
-        public IReadOnlyList<ComputerComponent> SpawnedComponents => spawnedComponents;
-
-        private void Awake()
-        {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            Instance = this;
-        }
-
         private void Start()
         {
-            if (BuildReceiver.Instance != null)
+            if (Networking.BuildReceiver.Instance != null)
             {
-                BuildReceiver.Instance.OnBuildParsed += HandleBuildParsed;
+                Networking.BuildReceiver.Instance.OnBuildParsed += HandleBuildParsed;
             }
         }
 
         private void OnDestroy()
         {
-            if (BuildReceiver.Instance != null)
+            if (Networking.BuildReceiver.Instance != null)
             {
-                BuildReceiver.Instance.OnBuildParsed -= HandleBuildParsed;
+                Networking.BuildReceiver.Instance.OnBuildParsed -= HandleBuildParsed;
             }
         }
 
-        public void HandleBuildParsed(BuildConfiguration config)
+        private void HandleBuildParsed(BuildConfiguration config)
         {
-            if (config == null) return;
+            Debug.Log($"[BuildComponentsSpawner] Spawando pecas para a Build ID: {config.BuildId}");
 
-            Debug.Log($"[BuildComponentSpawner] Spawando peças para a Build ID: {config.BuildId}");
             ClearPreviousSpawnedComponents();
 
             var ids = config.GetAllComponentIds();
-            Vector3 currentSpawnPos = (workbenchSpawnPoint != null) ? workbenchSpawnPoint.position : new Vector3(-0.8f, 0.05f, 0.3f);
+            
+            // For�amos o spawn point a ficar no canto esquerdo da mesa, longe da placa mae
+            Vector3 currentSpawnPos = defaultSpawnStart;
 
             int count = 0;
             foreach (var id in ids)
             {
                 ComponentDataSO data = ComponentCatalog.Instance != null ? ComponentCatalog.Instance.GetComponentData(id) : null;
+                
                 if (data != null)
                 {
                     SpawnComponentData(data, currentSpawnPos);
                 }
                 else
                 {
-                    // Se o componente não estiver cadastrado com asset específico, cria um placeholder Genérico
                     SpawnGenericPlaceholder(id, currentSpawnPos);
                 }
 
                 currentSpawnPos += spawnOffsetIncrement;
                 count++;
+                
                 if (count % 4 == 0)
                 {
-                    currentSpawnPos.x = (workbenchSpawnPoint != null) ? workbenchSpawnPoint.position.x : -0.8f;
-                    currentSpawnPos.z -= 0.35f;
+                    currentSpawnPos.z = defaultSpawnStart.z;
+                    currentSpawnPos.x -= 0.3f;
                 }
             }
 
@@ -116,6 +98,14 @@ namespace PCSimulator.Assembly
             }
 
             comp.Initialize(data);
+            
+            var rb = obj.GetComponent<Rigidbody>();
+            if (rb == null) rb = obj.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+
+            var col = obj.GetComponent<Collider>();
+            if (col != null) col.isTrigger = false;
+
             spawnedComponents.Add(comp);
         }
 
@@ -131,24 +121,27 @@ namespace PCSimulator.Assembly
             obj.GetComponent<Renderer>().material = mat;
 
             var comp = obj.AddComponent<ComputerComponent>();
-            spawnedComponents.Add(comp);
+            
+            var rb = obj.GetComponent<Rigidbody>();
+            if (rb == null) rb = obj.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
 
-            Debug.LogWarning($"[BuildComponentSpawner] Criado placeholder genérico para ID não catalogado: {componentId}");
+            spawnedComponents.Add(comp);
         }
 
         public void ClearPreviousSpawnedComponents()
         {
-            foreach (var comp in spawnedComponents)
+            foreach (var c in spawnedComponents)
             {
-                if (comp != null && comp.CurrentSlot == null)
+                if (c != null)
                 {
-                    Destroy(comp.gameObject);
+                    Destroy(c.gameObject);
                 }
             }
             spawnedComponents.Clear();
         }
 
-        private static Color GetColorForType(ComponentType type)
+        private Color GetColorForType(ComponentType type)
         {
             return type switch
             {
@@ -164,3 +157,4 @@ namespace PCSimulator.Assembly
         }
     }
 }
+

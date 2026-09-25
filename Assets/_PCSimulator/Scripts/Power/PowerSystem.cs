@@ -28,8 +28,12 @@ namespace PCSimulator.Power
             Instance = this;
         }
 
+        private bool isPoweredOn = false;
+
         public bool TryPressPowerButton()
         {
+            if (isPoweredOn) return false;
+
             Debug.Log("[PowerSystem] Botão Power pressionado. Validando montagem...");
 
             if (!ValidateRequiredComponents(out string failureReason))
@@ -39,6 +43,7 @@ namespace PCSimulator.Power
                 return false;
             }
 
+            isPoweredOn = true;
             StartCoroutine(PowerSequenceRoutine());
             return true;
         }
@@ -81,6 +86,23 @@ namespace PCSimulator.Power
 
             Debug.Log("[PowerSystem] BIOS inicializada. Computador ligado com sucesso (BEEP)!");
 
+            // Feedback visual: Muda a cor dos componentes instalados para parecerem "Ligados"
+            var slots = FindObjectsByType<AssemblySlot>(FindObjectsSortMode.None);
+            foreach (var slot in slots)
+            {
+                if (slot.IsOccupied && slot.InstalledComponent != null)
+                {
+                    var renderer = slot.InstalledComponent.GetComponentInChildren<Renderer>();
+                    if (renderer != null && renderer.material != null)
+                    {
+                        Color currentColor = renderer.material.color;
+                        // Torna a cor mais vibrante (RGB mode) e adiciona emissão
+                        renderer.material.EnableKeyword("_EMISSION");
+                        renderer.material.SetColor("_EmissionColor", currentColor * 1.5f);
+                    }
+                }
+            }
+
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.ChangeState(GameState.ComputerRunning);
@@ -90,3 +112,4 @@ namespace PCSimulator.Power
         }
     }
 }
+

@@ -1,4 +1,5 @@
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.SceneManagement;
 using PCSimulator.Core;
 using PCSimulator.Assembly;
 using PCSimulator.Networking;
@@ -6,10 +7,6 @@ using PCSimulator.Data;
 
 namespace PCSimulator.UI
 {
-    /// <summary>
-    /// HUD de Interface do Simulador de Montagem.
-    /// Exibe o progresso de peças instaladas, o estado atual do simulador e notificações.
-    /// </summary>
     public class UIMainHUD : MonoBehaviour
     {
         public static UIMainHUD Instance { get; private set; }
@@ -18,6 +15,7 @@ namespace PCSimulator.UI
         private int totalComponents = 0;
         private int installedComponentsCount = 0;
         private string statusNotification = "Aguardando payload JSON da Build...";
+        private bool showReturnButton = false;
 
         private void Awake()
         {
@@ -26,7 +24,6 @@ namespace PCSimulator.UI
                 Destroy(gameObject);
                 return;
             }
-
             Instance = this;
         }
 
@@ -37,11 +34,16 @@ namespace PCSimulator.UI
                 BuildReceiver.Instance.OnBuildParsed += HandleBuildParsed;
                 BuildReceiver.Instance.OnParseError += HandleParseError;
             }
-
             if (AssemblySystem.Instance != null)
             {
                 AssemblySystem.Instance.OnComponentInstalled += HandleComponentInstalled;
                 AssemblySystem.Instance.OnComponentUninstalled += HandleComponentUninstalled;
+            }
+            if (PCSimulator.Power.PowerSystem.Instance != null)
+            {
+                PCSimulator.Power.PowerSystem.Instance.OnPowerSequenceStarted += HandlePowerStarted;
+                PCSimulator.Power.PowerSystem.Instance.OnComputerBootSuccess += HandlePowerSuccess;
+                PCSimulator.Power.PowerSystem.Instance.OnPowerFailed += HandleParseError;
             }
         }
 
@@ -52,20 +54,37 @@ namespace PCSimulator.UI
                 BuildReceiver.Instance.OnBuildParsed -= HandleBuildParsed;
                 BuildReceiver.Instance.OnParseError -= HandleParseError;
             }
-
             if (AssemblySystem.Instance != null)
             {
                 AssemblySystem.Instance.OnComponentInstalled -= HandleComponentInstalled;
                 AssemblySystem.Instance.OnComponentUninstalled -= HandleComponentUninstalled;
             }
+            if (PCSimulator.Power.PowerSystem.Instance != null)
+            {
+                PCSimulator.Power.PowerSystem.Instance.OnPowerSequenceStarted -= HandlePowerStarted;
+                PCSimulator.Power.PowerSystem.Instance.OnComputerBootSuccess -= HandlePowerSuccess;
+                PCSimulator.Power.PowerSystem.Instance.OnPowerFailed -= HandleParseError;
+            }
+        }
+
+        private void HandlePowerStarted()
+        {
+            statusNotification = "Iniciando sequencia de Power... Lendo BIOS e LEDs.";
+        }
+
+        private void HandlePowerSuccess()
+        {
+            statusNotification = "PC LIGADO COM SUCESSO! Tudo operante.";
+            showReturnButton = true;
         }
 
         private void HandleBuildParsed(BuildConfiguration config)
         {
+            showReturnButton = false;
             currentBuildId = config.BuildId;
             totalComponents = config.GetAllComponentIds().Count;
             installedComponentsCount = 0;
-            statusNotification = $"Build '{config.BuildId}' carregada! Peças na bancada: {totalComponents}";
+            statusNotification = $"Build '{config.BuildId}' carregada! Pecas na bancada: {totalComponents}";
         }
 
         private void HandleParseError(string error)
@@ -76,7 +95,8 @@ namespace PCSimulator.UI
         private void HandleComponentInstalled(ComputerComponent component, AssemblySlot slot)
         {
             installedComponentsCount++;
-            statusNotification = $"✓ {component.ComponentData?.DisplayName ?? component.name} instalado no slot '{slot.SlotId}'";
+            string cName = component.ComponentData != null ? component.ComponentData.DisplayName : component.name;
+            statusNotification = $"Peca {cName} instalada no slot '{slot.SlotId}'";
             CheckAssemblyCompletion();
         }
 
@@ -90,7 +110,7 @@ namespace PCSimulator.UI
         {
             if (totalComponents > 0 && installedComponentsCount >= totalComponents)
             {
-                statusNotification = "🎉 Montagem Concluída! Pressione a tecla 'P' ou clique em Power para ligar o computador.";
+                statusNotification = "Montagem Concluida! Pressione a tecla 'P' ou clique em Power para ligar o computador.";
                 if (GameManager.Instance != null)
                 {
                     GameManager.Instance.ChangeState(GameState.AssemblyCompleted);
@@ -100,7 +120,9 @@ namespace PCSimulator.UI
 
         private void OnGUI()
         {
-            // Painel UI HUD no canto superior esquerdo
+            if (SceneManager.GetActiveScene().name == "MainMenu") return;
+            if (PlayerPrefs.GetInt("DebugMode", 1) == 0) return;
+
             GUI.Box(new Rect(15, 15, 340, 185), "SIMULADOR DE MONTAGEM DE PC");
 
             string stateName = GameManager.Instance != null ? GameManager.Instance.CurrentState.ToString() : "N/A";
@@ -110,9 +132,17 @@ namespace PCSimulator.UI
             float percent = totalComponents > 0 ? ((float)installedComponentsCount / totalComponents) * 100f : 0f;
             GUI.Label(new Rect(25, 80, 320, 20), $"Progresso: {installedComponentsCount} / {totalComponents} ({percent:F0}%)");
 
-            GUI.Label(new Rect(25, 105, 320, 45), $"Notificação:\n{statusNotification}");
+            GUI.Label(new Rect(25, 105, 320, 45), $"Notificacao:\n{statusNotification}");
 
             GUI.Label(new Rect(25, 155, 320, 40), "Controles: [T] Simular JSON | [P] Power | [R] Rotacionar");
+
+            if (showReturnButton)
+            {
+                if (GUI.Button(new Rect(15, 205, 340, 50), "VOLTAR AO MENU"))
+                {
+                    SceneManager.LoadScene("MainMenu");
+                }
+            }
         }
     }
 }

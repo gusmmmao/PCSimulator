@@ -38,7 +38,6 @@ namespace PCSimulator.Core
             }
 
             Instance = this;
-            DontDestroyOnLoad(gameObject);
         }
 
         public void ChangeState(GameState newState)

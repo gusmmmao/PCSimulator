@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9a436ad9d31df494b8526e0e863ae028, type: 3}
-  m_Name: DA_16gb_ddr4
+  m_Name: DA_mid_tower
   m_EditorClassIdentifier: Assembly-CSharp::PCSimulator.Data.ComponentDataSO
-  componentId: 16gb_ddr4
-  displayName: RAM_16GB_DDR4
-  componentType: 3
+  componentId: mid_tower
+  displayName: Case_MidTower
+  componentType: 7
   description: 
   socketType: 0
-  requiredSlotType: 4
-  dimensions: {x: 0.02, y: 0.08, z: 0.25}
+  requiredSlotType: 0
+  dimensions: {x: 0.7, y: 0.7, z: 0.7}
   prefab: {fileID: 0}
   icon: {fileID: 0}
